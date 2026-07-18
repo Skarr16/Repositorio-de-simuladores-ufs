@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+const fs = require('fs');
+
+const code = `import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, User, Calendar, Plus, Box, Search, Filter, Edit } from 'lucide-react';
 import type { Simulation } from '../types';
@@ -27,8 +29,8 @@ export default function SimulationList() {
       });
   }, []);
 
-  const allTopics = Array.from<string>(new Set(simulations.flatMap(s => s.topics || []))).sort();
-  const allThemes = Array.from<string>(new Set(simulations.flatMap(s => s.themes || []))).sort();
+  const allTopics = Array.from(new Set(simulations.flatMap(s => s.topics || []))).sort();
+  const allThemes = Array.from(new Set(simulations.flatMap(s => s.themes || []))).sort();
 
   const filteredSimulations = simulations.filter(sim => {
     const matchesSearch = sim.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -178,10 +180,10 @@ export default function SimulationList() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSimulations.map((sim) => (
             <div key={sim.id} className="relative rounded-xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden group aspect-video bg-gray-100">
-              <a href={`/storage/simulacoes/${sim.id}/index.html`} target="_blank" rel="noopener noreferrer" className="block relative w-full h-full">
+              <a href={\`/storage/simulacoes/\${sim.id}/index.html\`} target="_blank" rel="noopener noreferrer" className="block relative w-full h-full">
                 <div className="absolute inset-0 origin-top-left" style={{ width: '400%', height: '400%', transform: 'scale(0.25)' }}>
                   <iframe 
-                    src={`/storage/simulacoes/${sim.id}/index.html`} 
+                    src={\`/storage/simulacoes/\${sim.id}/index.html\`} 
                     className="w-full h-full border-0 pointer-events-none" 
                     tabIndex={-1}
                     aria-hidden="true"
@@ -195,7 +197,7 @@ export default function SimulationList() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        navigate(`/edit/${sim.id}`);
+                        navigate(\`/edit/\${sim.id}\`);
                       }}
                       className="p-2 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-lg transition-colors"
                       title="Editar simulação"
@@ -252,3 +254,6 @@ export default function SimulationList() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/SimulationList.tsx', code);

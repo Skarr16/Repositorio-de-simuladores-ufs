@@ -1,16 +1,50 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+
+let code = `import React, { useState } from 'react';
 import { CheckCircle2, AlertCircle, Loader2, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import TagInput from './TagInput';
+
+const SUBJECT_TREE = [
+  {
+    name: 'Física',
+    subTopics: [
+      'Movimento',
+      'Som & Ondas',
+      'Trabalho, Energia & Potência',
+      'Calor & Termometria',
+      'Fenômenos Quânticos',
+      'Luz & Radiação',
+      'Eletricidade, Ímãs & Circuitos'
+    ]
+  },
+  {
+    name: 'Matemática & Estatística',
+    subTopics: [
+      'Conceitos Matemáticos',
+      'Matemática Aplicada'
+    ]
+  },
+  {
+    name: 'Química',
+    subTopics: [
+      'Química Geral',
+      'Química Quântica'
+    ]
+  },
+  {
+    name: 'Terra & Espaço',
+    subTopics: []
+  },
+  {
+    name: 'Biologia',
+    subTopics: []
+  }
+];
 
 export default function UploadForm() {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
-  
-  const [existingTopics, setExistingTopics] = useState<string[]>([]);
-  const [existingThemes, setExistingThemes] = useState<string[]>([]);
   
   const [repoUrl, setRepoUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -19,21 +53,13 @@ export default function UploadForm() {
   
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetch('/api/simulations')
-      .then(res => res.json())
-      .then(data => {
-         const topics = new Set<string>();
-         const themes = new Set<string>();
-         data.forEach((sim: any) => {
-           if (sim.topics) sim.topics.forEach((t: string) => topics.add(t));
-           if (sim.themes) sim.themes.forEach((t: string) => themes.add(t));
-         });
-         setExistingTopics(Array.from(topics));
-         setExistingThemes(Array.from(themes));
-      })
-      .catch(err => console.error(err));
-  }, []);
+  const handleTopicToggle = (topic: string) => {
+    setSelectedTopics(prev => 
+      prev.includes(topic) 
+        ? prev.filter(t => t !== topic)
+        : [...prev, topic]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,8 +88,7 @@ export default function UploadForm() {
           title,
           author,
           repoUrl,
-          topics: selectedTopics,
-          themes: selectedThemes
+          topics: selectedTopics
         })
       });
 
@@ -75,13 +100,16 @@ export default function UploadForm() {
             const data = JSON.parse(text);
             errorMsg = data.error || errorMsg;
           } catch (e) {
+            console.error('Resposta não é JSON:', text.substring(0, 100));
             if (text.includes('504 Gateway Time-out')) {
-               errorMsg = 'O servidor demorou muito para responder. Tente usar um repositório mais leve ou verifique os logs do servidor.';
+               errorMsg = 'O servidor demorou muito para responder (timeout). Tente usar um repositório mais leve ou verifique os logs do servidor.';
             } else {
                errorMsg = 'Erro inesperado no servidor. ' + text.substring(0, 50);
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          // ignore
+        }
         throw new Error(errorMsg);
       }
 
@@ -136,23 +164,51 @@ export default function UploadForm() {
           />
         </div>
 
-        <TagInput 
-          label="Temas (ex: Física, Matemática)" 
-          tags={selectedThemes} 
-          onChange={setSelectedThemes} 
-          existingTags={existingThemes} 
-          placeholder="Digite um tema..." 
-          disabled={isUploading} 
-        />
-
-        <TagInput 
-          label="Assuntos (ex: Movimento, Geometria)" 
-          tags={selectedTopics} 
-          onChange={setSelectedTopics} 
-          existingTags={existingTopics} 
-          placeholder="Digite um assunto..." 
-          disabled={isUploading} 
-        />
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Assuntos (opcional)</label>
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 h-64 overflow-y-auto">
+            {SUBJECT_TREE.map((subject) => {
+              const isSubjectSelected = selectedTopics.includes(subject.name);
+              return (
+                <div key={subject.name} className="mb-4 last:mb-0">
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="checkbox"
+                      id={subject.name}
+                      checked={isSubjectSelected}
+                      onChange={() => handleTopicToggle(subject.name)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor={subject.name} className="ml-2 text-sm font-medium text-gray-900">
+                      {subject.name}
+                    </label>
+                  </div>
+                  {subject.subTopics.length > 0 && (
+                    <div className="ml-6 space-y-2">
+                      {subject.subTopics.map((subTopic) => {
+                        const isSubTopicSelected = selectedTopics.includes(subTopic);
+                        return (
+                          <div key={subTopic} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={subTopic}
+                              checked={isSubTopicSelected}
+                              onChange={() => handleTopicToggle(subTopic)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <label htmlFor={subTopic} className="ml-2 text-sm text-gray-700">
+                              {subTopic}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div>
           <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
@@ -211,3 +267,6 @@ export default function UploadForm() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/UploadForm.tsx', code);

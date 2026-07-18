@@ -19,6 +19,8 @@ interface SimulationRecord {
   title: string;
   author: string;
   createdAt: string;
+  topics?: string[];
+  themes?: string[];
 }
 
 async function initDb() {
@@ -36,6 +38,18 @@ async function saveSimulation(sim: SimulationRecord) {
   const sims = await getSimulations();
   sims.push(sim);
   await fs.promises.writeFile(DB_FILE, JSON.stringify(sims, null, 2));
+}
+
+
+async function updateSimulation(id: string, updates: Partial<SimulationRecord>) {
+  const sims = await getSimulations();
+  const index = sims.findIndex(s => s.id === id);
+  if (index !== -1) {
+    sims[index] = { ...sims[index], ...updates };
+    await fs.promises.writeFile(DB_FILE, JSON.stringify(sims, null, 2));
+    return sims[index];
+  }
+  throw new Error("Simulation not found");
 }
 
 async function deleteSimulation(id: string) {
@@ -110,7 +124,7 @@ async function startServer() {
   // Create a new simulation record
   app.post('/api/simulations', async (req, res) => {
     try {
-      const { id, title, author } = req.body;
+      const { id, title, author, topics, themes } = req.body;
       if (!id || !title || !author) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
@@ -119,7 +133,9 @@ async function startServer() {
         id,
         title,
         author,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        topics: topics || [],
+        themes: themes || []
       });
       
       res.json({ success: true, id });
@@ -131,7 +147,7 @@ async function startServer() {
 
   // GitHub integration
   app.post('/api/simulations/github', async (req, res) => {
-    const { id, title, author, repoUrl } = req.body;
+    const { id, title, author, repoUrl, topics, themes } = req.body;
     
     if (!id || !title || !author || !repoUrl) {
       return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
@@ -201,7 +217,9 @@ async function startServer() {
         id,
         title,
         author,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        topics: topics || [],
+        themes: themes || []
       });
 
       res.json({ success: true });
@@ -229,6 +247,26 @@ async function startServer() {
   });
 
   // Delete a simulation (optional cleanup)
+  
+  app.put('/api/simulations/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, author, topics, themes } = req.body;
+      
+      const updated = await updateSimulation(id, {
+        title,
+        author,
+        topics: topics || [],
+        themes: themes || []
+      });
+      
+      res.json({ success: true, simulation: updated });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update simulation' });
+    }
+  });
+
   app.delete('/api/simulations/:id', async (req, res) => {
     try {
       const simId = String(req.params.id);

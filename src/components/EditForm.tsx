@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, AlertCircle, Loader2, Globe } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import type { Simulation } from '../types';
 import TagInput from './TagInput';
 
-export default function UploadForm() {
+export default function EditForm() {
+  const { id } = useParams<{ id: string }>();
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   
   const [existingTopics, setExistingTopics] = useState<string[]>([]);
   const [existingThemes, setExistingThemes] = useState<string[]>([]);
   
-  const [repoUrl, setRepoUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [progressText, setProgressText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   const navigate = useNavigate();
 
@@ -23,17 +25,34 @@ export default function UploadForm() {
     fetch('/api/simulations')
       .then(res => res.json())
       .then(data => {
-         const topics = new Set<string>();
-         const themes = new Set<string>();
-         data.forEach((sim: any) => {
-           if (sim.topics) sim.topics.forEach((t: string) => topics.add(t));
-           if (sim.themes) sim.themes.forEach((t: string) => themes.add(t));
-         });
-         setExistingTopics(Array.from(topics));
-         setExistingThemes(Array.from(themes));
+        const topics = new Set<string>();
+        const themes = new Set<string>();
+        
+        data.forEach((s: any) => {
+          if (s.topics) s.topics.forEach((t: string) => topics.add(t));
+          if (s.themes) s.themes.forEach((t: string) => themes.add(t));
+        });
+        
+        setExistingTopics(Array.from(topics));
+        setExistingThemes(Array.from(themes));
+        
+        const sim = data.find((s: Simulation) => s.id === id);
+        if (sim) {
+          setTitle(sim.title);
+          setAuthor(sim.author);
+          setSelectedTopics(sim.topics || []);
+          setSelectedThemes(sim.themes || []);
+        } else {
+          setError('Simulação não encontrada.');
+        }
+        setIsLoading(false);
       })
-      .catch(err => console.error(err));
-  }, []);
+      .catch(err => {
+        console.error(err);
+        setError('Erro ao carregar os dados.');
+        setIsLoading(false);
+      });
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,61 +61,44 @@ export default function UploadForm() {
       return;
     }
     
-    if (!repoUrl) {
-      setError('Por favor, insira a URL do repositório GitHub.');
-      return;
-    }
-
     setIsUploading(true);
     setError(null);
-    setProgressText('Clonando e compilando o repositório (isso pode levar alguns minutos)...');
-
+    
     try {
-      const simulationId = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 9);
-      
-      const createRes = await fetch('/api/simulations/github', {
-        method: 'POST',
+      const res = await fetch(`/api/simulations/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: simulationId,
           title,
           author,
-          repoUrl,
           topics: selectedTopics,
           themes: selectedThemes
         })
       });
-
-      if (!createRes.ok) {
-        let errorMsg = 'Erro ao processar repositório GitHub.';
-        try {
-          const text = await createRes.text();
-          try {
-            const data = JSON.parse(text);
-            errorMsg = data.error || errorMsg;
-          } catch (e) {
-            if (text.includes('504 Gateway Time-out')) {
-               errorMsg = 'O servidor demorou muito para responder. Tente usar um repositório mais leve ou verifique os logs do servidor.';
-            } else {
-               errorMsg = 'Erro inesperado no servidor. ' + text.substring(0, 50);
-            }
-          }
-        } catch (e) {}
-        throw new Error(errorMsg);
+      
+      if (!res.ok) {
+        throw new Error('Falha ao atualizar simulação.');
       }
-
-      navigate('/');
+      navigate('/simulations');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Ocorreu um erro inesperado durante o processo.');
+      setError(err.message || 'Ocorreu um erro inesperado.');
     } finally {
       setIsUploading(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6 font-sans tracking-tight">Nova Simulação</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6 font-sans tracking-tight">Editar Simulação</h2>
       
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start text-red-700">
@@ -117,7 +119,6 @@ export default function UploadForm() {
             onChange={(e) => setTitle(e.target.value)}
             disabled={isUploading}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50"
-            placeholder="Ex: Queda Livre"
           />
         </div>
 
@@ -132,7 +133,6 @@ export default function UploadForm() {
             onChange={(e) => setAuthor(e.target.value)}
             disabled={isUploading}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50"
-            placeholder="Ex: João Silva"
           />
         </div>
 
@@ -154,55 +154,21 @@ export default function UploadForm() {
           disabled={isUploading} 
         />
 
-        <div>
-          <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 mb-2">
-            URL do Repositório GitHub
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Globe className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="url"
-              id="repoUrl"
-              value={repoUrl}
-              onChange={(e) => setRepoUrl(e.target.value)}
-              disabled={isUploading}
-              className="w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:bg-gray-50"
-              placeholder="https://github.com/usuario/repositorio"
-            />
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            O servidor tentará clonar o repositório, instalar as dependências (npm install) e rodar o comando de build (npm run build).
-          </p>
-        </div>
-
-        {isUploading && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm font-medium text-gray-700">
-              <span>{progressText}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out w-full animate-pulse"></div>
-            </div>
-          </div>
-        )}
-
         <div className="pt-4">
           <button
             type="submit"
-            disabled={isUploading || !title || !author || !repoUrl}
+            disabled={isUploading || !title || !author}
             className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isUploading ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Processando...
+                Salvando...
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-5 h-5 mr-2" />
-                Clonar e Publicar
+                Salvar Alterações
               </>
             )}
           </button>

@@ -3,4 +3,6 @@ export interface Simulation {
   title: string;
   author: string;
   createdAt: string;
+  topics?: string[];
+  themes?: string[];
 }

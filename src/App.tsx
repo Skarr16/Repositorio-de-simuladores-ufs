@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import { Beaker } from 'lucide-react';
 import SimulationList from './components/SimulationList';
 import UploadForm from './components/UploadForm';
+import EditForm from './components/EditForm';
 import SimulationViewer from './components/SimulationViewer';
 import Home from './components/Home';
 
@@ -50,6 +51,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/simulations" element={<div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8"><SimulationList /></div>} />
           <Route path="/upload" element={<div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8"><UploadForm /></div>} />
+          <Route path="/edit/:id" element={<div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8"><EditForm /></div>} />
           <Route path="/view/:id" element={<div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8"><SimulationViewer /></div>} />
         </Routes>
       </Layout>
