@@ -1,0 +1,6 @@
+{
+  "name": "Physica Lab",
+  "description": "Repositório centralizado de simulações interativas de física (HTML5).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
